@@ -229,6 +229,7 @@ text(coords_new$s.coord, coords_new$n.coord, cex = 0.6, pos = 4, col = "black")
 # Steps for re-projection of interpolated data -----------------------------------------------------
 
 # these are conceptual steps which essentially work backwards from those given above. 
+# they probably need revision but I think the concept should work out. 
 
 # Going point by point... 
 # 1. Given the downstream coordinate, locate the thalweg segment each new point is adjacent to
