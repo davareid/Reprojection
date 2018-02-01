@@ -179,7 +179,7 @@ for(i in 1:nrow(original_points)){
     else{n.coord.dist[i,j] = 1000}
   }
   
-  # extract index of smallest n coord distance in matrix, in case of multiple segments meetint 
+  # extract index of smallest s coord distance in matrix, in case of multiple segments meetint 
   # angle criteria
   nearest_line[i,1] =  which.min(n.coord.dist[i,])
   nearest_line[i,2] = min(n.coord.dist[i,])
@@ -237,9 +237,47 @@ text(coords_new$s.coord, coords_new$n.coord, cex = 0.6, pos = 4, col = "black")
 # 3. Calculate how far from the upstream or downstream vertex a perpendicular line drawn from the point to the
 # line segment is located
 # 4. We can then calculate the distance from the unknown point to one of the vertices, and then to 
-# the other vertex. 
-# 5. we now have two known points on a triangle of three known sides. I think from here it is 
-# possible to calculate the new coordinates in relation to the known coordinates. 
+# the other vertex. Most importantly, we need the distance from the unknown point to the upstream 
+# centerline vertex
+# 5. Once you have all sides of the right angle triangle, calculate the slope of the centerline
+#   segment from the segment's vertices
+# 6. Calculate the angle between the centerline segment and the hypotenuse of the triangle
+# 7. Using this angle and the slope of the centerline segment, find the slope of the hypotenuse
+# 8. Using this slope and the cartesian coordinates of the upstream centerline segment vertex,
+#   calculate the new coordinates. 
+
+
+# --- define points to be transformed back to original coordinates
+# this would be the post-interpolation points 
+
+dat_interp = coords_new[complete.cases(coords_new),]
+
+# --- calculate some parameters related to the centerline segments
+
+# calculate the slope of each centerline segment
+centerline_slope = matrix(nrow = nrow(simple_centerline)-1, ncol = 1)
+
+for(i in 1:nrow(simple_centerline)-1){
+  centerline_slope[i] = (simple_centerline$y[i] - simple_centerline$y[i+1])/
+    (simple_centerline$x[i] - simple_centerline$x[i+1])
+}
+
+# merge line ID, counter, and line length  and coords into single file
+centerline_data = as.data.frame(cbind(counter, centerline_slope, line.lengths, line.start.cumu, thal.line$ends))
+
+# For each point to be interpolated back, figure out which centerline segment is closest
+# generate matrix to be populated in loop
+
+nearest_line = matrix(nrow = nrow(dat_interp), ncol = nrow(centerline_data))
+
+for(i in 1:nrow(dat_interp)){
+  for (j in 1:nrow(centerline_data)-1){
+    if(dat_interp$n.coord[i] > centerline_data$line.start.cumu[j] & dat_interp$n.coord[i]<=centerline_data$line.start.cumu[j+1]){
+      nearest_line[i,j] = centerline_data$counter[j]
+    } else{nearest_line[i,j] = NA}
+  }
+}
+
 
 # General notes ------------------------------------------------------------------------------------
 
