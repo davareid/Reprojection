@@ -68,7 +68,7 @@ simple_centerline = approx(thalweg$Easting,
                            n=nrow(original_points)/4, rule = 1, f = 0, ties = mean)
 
 # plot centerline and data to be transformed
-windows()
+#windows()
 plot(simple_centerline$x, simple_centerline$y, type = "l", col = "red")
 points(original_points$Easting, original_points$Northing, col = "blue")
 legend(bty = "n", "topright", pch = c(NA,21), lty = c(1,NA), col = c("red", "blue"),
@@ -166,7 +166,7 @@ for(i in 1:nrow(original_points)){
     # check to see if both angles are acute (units are radians)
     # if angles check out, extract necessary side lengths and angles for calculating downstream (n)
     # coordinate
-    if(ba.ang < 1.6 & ac.ang < 1.6){
+    if(ba.ang < 1.58 & ac.ang < 1.58){
       
       # add a marker so that the correct segment can be idenfitied
       closest.line[i,j] = 1
@@ -248,7 +248,8 @@ text(coords_new$s.coord, coords_new$n.coord, cex = 0.6, pos = 4, col = "black")
 
 
 # --- define points to be transformed back to original coordinates
-# this would be the post-interpolation points 
+# this would be the post-interpolation points. Ultimately, all that is needed is the S and N coord 
+# values
 
 dat_interp = coords_new[complete.cases(coords_new),]
 
@@ -277,13 +278,10 @@ nearest_line = matrix(nrow = nrow(dat_interp), ncol = nrow(centerline_data))
 
 for(i in 1:nrow(nearest_line)){
   for(j in 1:nrow(centerline_data)){
-    
-  p = dat_interp$n.coord[i]
-  k = cumu_upstream[j]
-  t = centerline_data$line.start.cumu[j]
-  q = centerline_data$counter[j]
   
-  nearest_line[i,j] = ifelse(p>t & p<=k, q, NA)
+  nearest_line[i,j] = ifelse(dat_interp$n.coord[i] > centerline_data$line.start.cumu[j]
+                             & dat_interp$n.coord[i]<=cumu_upstream[j],
+                             centerline_data$counter[j], NA)
   }
 }
 
@@ -294,7 +292,7 @@ dat_interp = cbind(dat_interp, near_line)
 
 # merge data from line segments to the interpolated data file
 # we should now have everything we need to retransform the data
-#  back to original coordinates
+#  back to original coordinates. This might need to be changed 
 dat_interp = merge(dat_interp, centerline_data, by.x = 8, by.y = 1)
 
 # --- Calculate items used for retransformation ---
@@ -313,25 +311,18 @@ theta = acos((segment_sublength^2 + hypotenuse^2 - dat_interp$s.coord^2)/
                (2*segment_sublength*hypotenuse))
 
 # Step 3: calculate the slope of the hypotenuse line
-m_hypotenuse = tan((atan(dat_interp$centerline_slope))-theta)
+m_hypotenuse = tan((atan(dat_interp$centerline_slope))-(pi-theta))
 
 # step 4: calculate coordinates of transformed points
 
 new_x = dat_interp$x0 + hypotenuse*(1/(sqrt(1+m_hypotenuse^2)))
 new_y = dat_interp$y0 + hypotenuse*(m_hypotenuse/(sqrt(1+m_hypotenuse^2)))
 
-# combine all the data for inspection to figure out where the bug is
-dat_out =cbind(dat_interp, segment_sublength, hypotenuse, theta, m_hypotenuse, new_x, new_y)
-
-                                    
-windows()
+# plot new data and old data for comparison                                    
+#windows()
 plot(centerline_data$x0, centerline_data$y0)
 points(new_x, new_y, col = "red")
-points(original_points$Easting, original_points$Northing, col = "green")
-
-windows()
-plot(new_x, new_y, col = "red")
-points(original_points$Easting, original_points$Northing, col = "green")
+points(original_points$Easting, original_points$Northing, col = "green", cex = 2)
 lines(centerline_data$x0, centerline_data$y0)
 
 # General notes ------------------------------------------------------------------------------------
