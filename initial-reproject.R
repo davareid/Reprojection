@@ -264,20 +264,75 @@ for(i in 1:nrow(simple_centerline)-1){
 
 # merge line ID, counter, and line length  and coords into single file
 centerline_data = as.data.frame(cbind(counter, centerline_slope, line.lengths, line.start.cumu, thal.line$ends))
+cumu_upstream = c(centerline_data$line.start.cumu[2:nrow(centerline_data)],1000)
 
 # For each point to be interpolated back, figure out which centerline segment is closest
 # generate matrix to be populated in loop
 
 nearest_line = matrix(nrow = nrow(dat_interp), ncol = nrow(centerline_data))
 
-for(i in 1:nrow(dat_interp)){
-  for (j in 1:nrow(centerline_data)-1){
-    if(dat_interp$n.coord[i] > centerline_data$line.start.cumu[j] & dat_interp$n.coord[i]<=centerline_data$line.start.cumu[j+1]){
-      nearest_line[i,j] = centerline_data$counter[j]
-    } else{nearest_line[i,j] = NA}
+# this loop finds the closest centerline segment to any point, given the n coord
+# for the point and the vertices of the centerline segments. This is needed to 
+# transform the data back
+
+for(i in 1:nrow(nearest_line)){
+  for(j in 1:nrow(centerline_data)){
+    
+  p = dat_interp$n.coord[i]
+  k = cumu_upstream[j]
+  t = centerline_data$line.start.cumu[j]
+  q = centerline_data$counter[j]
+  
+  nearest_line[i,j] = ifelse(p>t & p<=k, q, NA)
   }
 }
 
+# join nearest_line to output data file
+near_line = as.data.frame(rowSums(nearest_line, na.rm = TRUE))
+names(near_line) = "near_segment"
+dat_interp = cbind(dat_interp, near_line)
+
+# merge data from line segments to the interpolated data file
+# we should now have everything we need to retransform the data
+#  back to original coordinates
+dat_interp = merge(dat_interp, centerline_data, by.x = 8, by.y = 1)
+
+# --- Calculate items used for retransformation ---
+
+# step 1: calculate the distance of the n coord for each point from the upstream limit of te 
+# centerline segment, and the final side of the "triangle" made up of s coord and 
+# the line just calculated
+
+segment_sublength = dat_interp$n.coord - dat_interp$line.start.cumu
+hypotenuse = sqrt(segment_sublength^2 + dat_interp$s.coord^2)
+
+# step 2: calculate the angle made between the centerline segment and the 
+# hypotenuse line
+
+theta = acos((segment_sublength^2 + hypotenuse^2 - dat_interp$s.coord^2)/
+               (2*segment_sublength*hypotenuse))
+
+# Step 3: calculate the slope of the hypotenuse line
+m_hypotenuse = tan((atan(dat_interp$centerline_slope))-theta)
+
+# step 4: calculate coordinates of transformed points
+
+new_x = dat_interp$x0 + hypotenuse*(1/(sqrt(1+m_hypotenuse^2)))
+new_y = dat_interp$y0 + hypotenuse*(m_hypotenuse/(sqrt(1+m_hypotenuse^2)))
+
+# combine all the data for inspection to figure out where the bug is
+dat_out =cbind(dat_interp, segment_sublength, hypotenuse, theta, m_hypotenuse, new_x, new_y)
+
+                                    
+windows()
+plot(centerline_data$x0, centerline_data$y0)
+points(new_x, new_y, col = "red")
+points(original_points$Easting, original_points$Northing, col = "green")
+
+windows()
+plot(new_x, new_y, col = "red")
+points(original_points$Easting, original_points$Northing, col = "green")
+lines(centerline_data$x0, centerline_data$y0)
 
 # General notes ------------------------------------------------------------------------------------
 
