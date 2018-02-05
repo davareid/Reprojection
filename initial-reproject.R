@@ -49,7 +49,7 @@ library(sp)
 setwd("C:/Users/geography/OneDrive/Work/Projects/Carnation/Data/SA bed survey data/MENV work/Processed data/SA2")
 
 # load data
-dat = read.csv("SA2 1985 checked.csv")
+dat = read.csv("SA2 1971 checked.csv")
 
 # load centerline points
 centerline = read.csv("sa2centerline.csv")
@@ -97,7 +97,6 @@ x = simple_centerline$x
 spline = spline(simple_centerline$x, y = simple_centerline$y, n = 20*length(x), method = "fmm",
        xmin = min(x), xmax = max(x), ties = mean)
 
-plot(spline)
 simple_centerline = cbind(spline$x, spline$y)
 
 # reformat line object
@@ -189,7 +188,7 @@ for(i in 1:nrow(original_points)){
     # check to see if both angles are acute (units are radians)
     # if angles check out, extract necessary side lengths and angles for calculating downstream (n)
     # coordinate
-    if(ba.ang < 1.58 & ac.ang < 1.58){
+    if(ba.ang < 1.575 & ac.ang < 1.575){
       
       # add a marker so that the correct segment can be idenfitied
       closest.line[i,j] = 1
@@ -345,8 +344,8 @@ new_y = dat_interp$y0 + hypotenuse*(m_hypotenuse/(sqrt(1+m_hypotenuse^2)))
 windows()
 plot(centerline_data$x0, centerline_data$y0, xlim = c(min(centerline_data$x0)-20, max(centerline_data$x0)+20),
      ylim = c(min(centerline_data$y0)-20, max(centerline_data$y0)+20))
-points(new_x, new_y, col = "red")
-points(original_points$Easting, original_points$Northing, col = "green", cex = 2)
+points(new_x, new_y, pch = 21, bg = "red", cex = 0.5)
+points(original_points$Easting, original_points$Northing, col = "green", cex = 1)
 lines(centerline_data$x0, centerline_data$y0)
 
 # General notes ------------------------------------------------------------------------------------
