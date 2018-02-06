@@ -58,6 +58,10 @@ setwd("C:/Users/geography/OneDrive/Work/Projects/Carnation/Data/SA bed survey da
 # load data
 original_points = read.csv("SA2 1980 checked.csv")
 
+# add a point ID column to data. Used to match up points later
+n.points = seq(1,nrow(original_points), 1)
+original_points$X = original_points$X*0 + n.points
+
 # load centerline points
 centerline = read.csv("sa2centerline.csv")
 
@@ -128,7 +132,6 @@ simple_centerline = lines$simple_centerline
 coords_new = cartesian_to_channelcentric(original_points, 
                                          thal.line, 
                                          line.start.cumu)
-
 
 # plot reprojected data (i.e. function output)
 plot(coords_new$s.coord, coords_new$n.coord, 
