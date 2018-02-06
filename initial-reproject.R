@@ -38,7 +38,7 @@
 # clear workspace
 rm(list = ls(all = TRUE))
 
-# load data ---------------------------------------------------------------------------------
+# load data and define variables---------------------------------------------------------------------------------
 
 
 # load packages
@@ -54,84 +54,100 @@ dat = read.csv("SA2 1971 checked.csv")
 # load centerline points
 centerline = read.csv("sa2centerline.csv")
 
-# subset thalweg
-thalweg = subset(dat, Thalweg == "TRUE")
-
 # either subset data or use all data. 
 #original_points = subset(dat, Banks == "TR" | Banks == "TL")
 original_points = dat
 
-
-## interpolate centerline to desired density -----------------------------------------------
-
-
-# this resamples to a lower point spacing - but may be unnecessary if a different
-# approach is taken to generating the centerline
-#simple_centerline = approx(thalweg$Easting,
-#                           thalweg$Northing, method="linear", 
-#                           n=nrow(original_points)/10, rule = 1, f = 0, ties = mean)
-
-simple_centerline = centerline[,3:4]
-names(simple_centerline) = c("x", "y")
-
-simple_centerline$x = simple_centerline$x - 5
-simple_centerline$y = simple_centerline$y - 15
-
+# these are distances, in m, which the centerline will be offset
+x.offset = 5
+y.offset = 15
+interp_factor = 20
 
 # plot centerline and data to be transformed
 windows()
-plot(simple_centerline$x, simple_centerline$y, type = "l", col = "red",
+plot(centerline$POINT_X, centerline$POINT_Y, type = "l", col = "red",
      xlim = c(min(original_points$Easting)-20, max(original_points$Easting)+20),
      ylim = c(min(original_points$Northing)-20, max(original_points$Northing)+20))
 points(original_points$Easting, original_points$Northing, col = "blue")
 legend(bty = "n", "topright", pch = c(NA,21), lty = c(1,NA), col = c("red", "blue"),
        legend = c("centerline points", "untransformed points"))
 
+## interpolate centerline to desired density -----------------------------------------------
+# this is also where the function could begin
+
+# load function
 
 
-# Prep data for reprojection function ------------------------------------------------------
+######################################################################################################################
 
+# centerline_interp = function(centerline, x.offset, y.offset, interp_factor){
+# 
+# # this resamples to a lower point spacing - but may be unnecessary if a different
+# # approach is taken to generating the centerline
+# 
+# simple_centerline = centerline[,3:4]
+# names(simple_centerline) = c("x", "y")
+# 
+# # offset centerline so that entire channel is to one side of it.
+# # offset values will need to change each time
+# simple_centerline$x = simple_centerline$x - x.offset
+# simple_centerline$y = simple_centerline$y - y.offset
+# 
+# # Prep data for reprojection function ------------------------------------------------------
+# 
+# 
+# # generate a spline interpolation to create short line segments
+# x = simple_centerline$x
+# spline = spline(simple_centerline$x, y = simple_centerline$y, n = interp_factor*length(x), method = "fmm",
+#        xmin = min(x), xmax = max(x), ties = mean)
+# 
+# simple_centerline = cbind(spline$x, spline$y)
+# 
+# # reformat line object
+# # extract xy from thalweg data
+# simple_centerline = as.data.frame(cbind(simple_centerline[[1]],
+#                                         simple_centerline[[2]]))
+# 
+# simple_centerline = as.data.frame(cbind(spline$x, spline$y))
+# 
+# # rename dataframe
+# names(simple_centerline) = c("x", "y")
+# 
+# # define observation window for format conversion (needed as input for psp object)
+# thal.window = owin(c(min(simple_centerline$x)-100,
+#                      max(simple_centerline$x)+100), c(min(simple_centerline$y)-100,
+#                                                  max(simple_centerline$y)+100))
+# 
+# # create a psp object (similar to SpatialLines), inputs are coords for
+# # line ends and the window object
+# thal.line = psp(simple_centerline$x[1:nrow(simple_centerline)-1],
+#                 simple_centerline$y[1:nrow(simple_centerline)-1],
+#                 simple_centerline$x[2:nrow(simple_centerline)],
+#                 simple_centerline$y[2:nrow(simple_centerline)], thal.window)
+# 
+# # calculate lengths of individual line segments from psp centerline object
+# line.lengths = lengths.psp(thal.line)
+# 
+# # calculate cumulative segment start positions - each n coord calculated will be added
+# # to the appropriate break location
+# # empty vector
+# line.start.cumu = line.lengths*0
+# 
+# for(i in 2:length(line.lengths)){
+#   line.start.cumu[i] = line.lengths[i-1]+line.start.cumu[i-1]
+# }
+# 
+# thal.line = list("thal.line" = thal.line, "line.lengths" = line.lengths, "line.start.cumu" = line.start.cumu)
+# # return the following variables
+# 
+# return(thal.line)
+# 
+# } # end function
 
-# generate a spline interpolation to create short line segments
-x = simple_centerline$x
-spline = spline(simple_centerline$x, y = simple_centerline$y, n = 20*length(x), method = "fmm",
-       xmin = min(x), xmax = max(x), ties = mean)
+####################################################################################################################
 
-simple_centerline = cbind(spline$x, spline$y)
-
-# reformat line object
-# extract xy from thalweg data
-simple_centerline = as.data.frame(cbind(simple_centerline[[1]],
-                                        simple_centerline[[2]]))
-
-simple_centerline = as.data.frame(cbind(spline$x, spline$y))
-
-# rename dataframe
-names(simple_centerline) = c("x", "y")
-
-# define observation window for format conversion (needed as input for psp object)
-thal.window = owin(c(min(thalweg$Easting)-50, 
-                     max(thalweg$Easting)+50), c(min(thalweg$Northing)-50, 
-                                                 max(thalweg$Northing)+50))
-
-# create a psp object (similar to SpatialLines), inputs are coords for 
-# line ends and the window object
-thal.line = psp(simple_centerline$x[1:nrow(simple_centerline)-1], 
-                simple_centerline$y[1:nrow(simple_centerline)-1],
-                simple_centerline$x[2:nrow(simple_centerline)], 
-                simple_centerline$y[2:nrow(simple_centerline)], thal.window)
-
-# calculate lengths of individual line segments from psp centerline object
-line.lengths = lengths.psp(thal.line)
-
-# calculate cumulative segment start positions - each n coord calculated will be added
-# to the appropriate break location 
-# empty vector
-line.start.cumu = line.lengths*0
-
-for(i in 2:length(line.lengths)){
-  line.start.cumu[i] = line.lengths[i-1]+line.start.cumu[i-1]
-}
+source("centerline_interp.R")
+m = centerline_interp(centerline, x.offset, y.offset, interp_factor)
 
 
 ## reproject--------------------------------------------------------------------------------
