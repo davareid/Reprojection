@@ -11,13 +11,13 @@
 ########## Summary of steps #####################################################
 
 # 1. load data of interest. Input data, at a minimum, includes xy coords for  
-# some points of interest
+#   some points of interest
 
 # 2. Subset thalweg points from dataset (or load points used to generate
-# channel centerline)
+#   channel centerline)
 
 # 3. If desired, subset other points (e.g. bank breaklines) to be reprojected
-# and interpolated seperately 
+#   and interpolated seperately 
 
 # 4. Interpolate or sample thalweg to desired point density
 
@@ -26,13 +26,13 @@
 # 6. Extract/calculate lengths of line segments
 
 # 7. run primary function which locates line segment closest to each point to
-# be transformed, calculates perpendicular distance from that segment to 
-# the point, and calculates how far along the segment that intersection 
-# is. This is the basis for the new coordinates
+#   be transformed, calculates perpendicular distance from that segment to 
+#   the point, and calculates how far along the segment that intersection 
+#   is. This is the basis for the new coordinates
 
 # 8. merge all necessary data, calculate downstream coordinate by adding 
-# distance from line segment vertices that the point of interest falls,
-# to the cumulative downstream distance along the centerline. 
+#   distance from line segment vertices that the point of interest falls,
+#   to the cumulative downstream distance along the centerline. 
 
 # clear workspace
 rm(list = ls(all = TRUE))
@@ -47,30 +47,35 @@ rm(list = ls(all = TRUE))
 require(spatstat)
 library(sp)
 
+# set working directory for functions
+setwd("C:/Users/geography/OneDrive/Work/Projects/Carnation/Data/SA bed survey data/MENV work/Processed data/SA2")
+
 # load functions - three total here
 source("centerline_interp.R")
 source("cartesian_to_channelcentric.R")
-source("channelcentric_to_cartesian.R")
+
+# two options for this function depending on whether the centerline is north or south of the channel
+source("channelcentric_to_cartesian_inv.R")
 
 # set working directory
-setwd("C:/Users/geography/OneDrive/Work/Projects/Carnation/Data/SA bed survey data/MENV work/Processed data/SA2")
+setwd("C:/Users/geography/OneDrive/Work/Projects/Carnation/Data/SA bed survey data/MENV work/Processed data/SA3")
 
 # load data
-original_points = read.csv("SA2 1980 checked.csv")
+original_points = read.csv("SA3 1980 checked.csv")
 
 # add a point ID column to data. Used to match up points later
 n.points = seq(1,nrow(original_points), 1)
 original_points$X = original_points$X*0 + n.points
 
 # load centerline points
-centerline = read.csv("sa2centerline.csv")
+centerline = read.csv("sa3centerline.csv")
 
 # these are distances, in m, which the centerline will be offset
-x.offset = 5
-y.offset = 15
+x.offset = 13
+y.offset = -15
 
 # this is the densification factor for the line interpolation
-interp_factor = 20
+interp_factor = 1
 
 # plot centerline and data to be transformed to inspect
 
@@ -113,6 +118,18 @@ line.lengths = lines$line.lengths
 line.start.cumu = lines$line.start.cumu
 simple_centerline = lines$simple_centerline
 
+plot(centerline$POINT_X, centerline$POINT_Y,
+     type = "l", col = "red",
+     xlim = c(min(original_points$Easting)-20, 
+              max(original_points$Easting)+20),
+     ylim = c(min(original_points$Northing)-20, 
+              max(original_points$Northing)+20))
+points(original_points$Easting, original_points$Northing,
+       col = "blue")
+lines(simple_centerline)
+legend(bty = "n", "topright", pch = c(NA,21),
+       lty = c(1,NA), col = c("red", "blue"),
+       legend = c("centerline points", "untransformed points"))
 
 
 ## -- project to channel-centric---------------------------------------------------------------------------------------
@@ -145,6 +162,7 @@ abline(v = 0, lty = 2)
 
 # -- convert back to cartesian from channel-centric ------------------------------------------------------------------
 
+## NOTE this section still requires some modification pending outcome of synchronization with steve's material
 
 # run the function, inputs are the following:
 
@@ -154,19 +172,20 @@ abline(v = 0, lty = 2)
 # 4. psp line object of centerline
 
 # output: xyz data in cartesian form
-data_out = channelcentric_to_cartesian(coords_new, 
+data_out = channelcentric_to_cartesian_inv(coords_new, 
                                        thal.line, simple_centerline, 
                                        line.start.cumu,
                                        line.lengths)
 
 
-# plot new data and old data for comparison                                    
+# plot new data and old data for comparison
 
-plot(data_out$new_x, data_out$new_y, 
-     pch = 21, bg = "red", cex = 0.5)
+plot(simple_centerline$x, simple_centerline$y)
+points(data_out$new_x, data_out$new_y, 
+     pch = 21, bg = "red", cex = 0.5, xlim = c(min(data_out$new_x) - 15, max(data_out$new_x) + 15))
 points(original_points$Easting, original_points$Northing, 
        col = "green", cex = 1)
-lines(simple_centerline$x, simple_centerline$y)
+
 
 
 
